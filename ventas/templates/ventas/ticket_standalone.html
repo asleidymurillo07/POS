@@ -1,0 +1,104 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<style>
+.border-dashed {
+    border-style: dashed !important;
+}
+</style>
+
+<div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 flex flex-col">
+        
+        <!-- Encabezado del Ticket -->
+        <div class="text-center mb-3">
+            <span class="inline-block bg-emerald-50 text-emerald-600 border border-emerald-100 mb-2 px-3 py-1 rounded-full text-xs font-bold">
+                ✓ Venta Realizada con Éxito
+            </span>
+            <h3 class="text-lg font-black text-gray-800">La Pasadita</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{{ venta.fecha|date:"d/m/Y H:i" }}</p>
+            <div class="text-xs text-gray-500 font-semibold mt-1">
+                Folio: #<span class="font-mono text-gray-800">{{ venta.id }}</span>
+            </div>
+        </div>
+
+        <!-- Desglose de Cliente, Método de Pago y Referencia -->
+        <div class="bg-gray-50 rounded-2xl p-3 space-y-1.5 border border-gray-100 text-xs my-1">
+            <div class="flex justify-between items-center">
+                <span class="text-gray-400 font-semibold">Cliente:</span>
+                <span class="font-bold text-gray-800">
+                    {% if venta.cliente %}{{ venta.cliente.nombre }}{% else %}Público General{% endif %}
+                </span>
+            </div>
+            
+            <div class="flex justify-between items-center">
+                <span class="text-gray-400 font-semibold">Método de Pago:</span>
+                <span class="font-bold text-gray-800 capitalize flex items-center gap-1">
+                    {% if venta.metodo_pago == 'efectivo' %}
+                        <i class="fa-solid fa-money-bill-wave text-emerald-500"></i> Efectivo
+                    {% elif venta.metodo_pago == 'tarjeta' %}
+                        <i class="fa-solid fa-credit-card text-blue-500"></i> Tarjeta
+                    {% elif venta.metodo_pago == 'transferencia' %}
+                        <i class="fa-solid fa-building-columns text-purple-500"></i> Transferencia
+                    {% else %}
+                        {{ venta.get_metodo_pago_display|default:venta.metodo_pago }}
+                    {% endif %}
+                </span>
+            </div>
+
+            {% if venta.referencia_pago %}
+            <div class="flex justify-between items-center pt-1 border-t border-gray-200/60">
+                <span class="text-gray-400 font-semibold">Ref. / Folio:</span>
+                <span class="font-mono font-bold text-blue-600">{{ venta.referencia_pago }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <hr class="border-dashed border-gray-200 my-3">
+
+        <!-- Tabla de Productos -->
+        <div class="overflow-y-auto mb-3 max-h-52 pr-1">
+            <table class="w-full text-left border-collapse">
+                <thead class="border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase">
+                    <tr>
+                        <th class="pb-2">Cant.</th>
+                        <th class="pb-2">Producto</th>
+                        <th class="pb-2 text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody class="text-xs text-gray-700 divide-y divide-gray-50">
+                    {% for item in detalles %}
+                    <tr>
+                        <td class="py-2 font-semibold text-gray-600">
+                            {% if item.producto.es_granel %}
+                                {{ item.cantidad|floatformat:3 }} kg
+                            {% else %}
+                                {{ item.cantidad|floatformat:0 }}
+                            {% endif %}
+                        </td>
+                        <td class="py-2 font-bold text-gray-800">{{ item.producto.nombre }}</td>
+                        <td class="py-2 text-right font-mono font-bold text-gray-800">${{ item.subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <hr class="border-dashed border-gray-200 my-3">
+
+        <!-- Total General -->
+        <div class="bg-gray-50 p-4 rounded-2xl mb-4 space-y-2 text-xs border border-gray-100">
+            <div class="flex justify-between items-center text-sm">
+                <span class="font-extrabold text-gray-800">TOTAL PAGADO:</span>
+                <span class="font-mono font-black text-blue-600 text-xl">${{ venta.total|floatformat:2 }}</span>
+            </div>
+        </div>
+
+        <!-- Botón para cerrar modal -->
+        <a href="{% url 'pos' %}" 
+           class="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm py-3.5 rounded-2xl shadow-lg shadow-blue-500/20 transition text-center block cursor-pointer">
+            Cerrar y Hacer Otra Venta
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,484 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<style>
+.border-dashed {
+    border-style: dashed !important;
+}
+</style>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+
+    <!-- COLUMNA IZQUIERDA: CATÁLOGO Y BUSCADOR (8 COLUMNAS) -->
+    <div class="lg:col-span-7 xl:col-span-8 space-y-6">
+
+        <!-- Header y Buscador -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-black text-gray-800 tracking-tight">Caja / Registro de Venta</h1>
+                    <p class="text-xs text-gray-400">Escanea un código de barras o selecciona productos</p>
+                </div>
+                <span class="bg-blue-50 text-blue-700 font-bold text-xs px-3 py-1.5 rounded-xl border border-blue-100">
+                    <i class="fa-solid fa-boxes-stacked mr-1"></i> {{ productos|length }} Disponibles
+                </span>
+            </div>
+
+            <form id="formScanner" onsubmit="event.preventDefault();" class="relative">
+                <i class="fa-solid fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-base"></i>
+                <input type="text" id="inputBuscar" placeholder="Escanea código o busca por nombre..." autofocus autocomplete="off"
+                    class="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-11 pr-4 py-3 text-xs font-semibold text-gray-800 focus:outline-none focus:border-blue-500 focus:bg-white transition">
+            </form>
+        </div>
+
+        <!-- Grid de Catálogo de Productos -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h2 class="text-sm font-extrabold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-grid-2 text-blue-600"></i> Catálogo Disponible
+            </h2>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="contenedorProductos">
+                {% for prod in productos %}
+                <button type="button" 
+                    data-id="{{ prod.id }}"
+                    data-nombre="{{ prod.nombre }}"
+                    data-precio="{{ prod.precio_venta }}"
+                    data-stock="{{ prod.stock }}"
+                    data-codigo="{{ prod.codigo|default:''|lower }}"
+                    data-es-granel="{% if prod.es_granel %}true{% else %}false{% endif %}"
+                    onclick="manejadorAgregarProducto(this)"
+                    class="card-producto bg-gray-50/80 hover:bg-blue-50/60 border border-gray-100 hover:border-blue-200 rounded-2xl p-4 flex flex-col justify-between text-left transition group relative overflow-hidden cursor-pointer">
+                    
+                    <div class="flex items-start justify-between w-full">
+                        <div class="w-9 h-9 rounded-xl bg-white text-blue-600 flex items-center justify-center font-bold text-sm shadow-xs group-hover:bg-blue-600 group-hover:text-white transition">
+                            {% if prod.es_granel %}
+                                <i class="fa-solid fa-weight-scale text-amber-500 group-hover:text-white"></i>
+                            {% else %}
+                                <i class="fa-solid fa-box-open"></i>
+                            {% endif %}
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-400 bg-white px-2 py-0.5 rounded-md border border-gray-100">
+                            {% if prod.es_granel %}Granel{% else %}Stock: {{ prod.stock }}{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="mt-4">
+                        <p class="text-xs font-bold text-gray-800 line-clamp-2 leading-tight">{{ prod.nombre }}</p>
+                        <p class="text-sm font-black text-emerald-600 mt-1">${{ prod.precio_venta }} <span class="text-[10px] font-normal text-gray-400">{% if prod.es_granel %}/kg{% endif %}</span></p>
+                    </div>
+                </button>
+                {% empty %}
+                <div class="col-span-full py-12 text-center text-gray-400">
+                    <i class="fa-solid fa-box-open text-4xl mb-2 text-gray-300 block"></i>
+                    No hay productos en inventario con stock.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: CARRITO Y CHECKOUT (4 COLUMNAS) -->
+    <div class="lg:col-span-5 xl:col-span-4">
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[580px] sticky top-6 space-y-4">
+            
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-cart-shopping text-blue-600"></i>
+                        <h2 class="text-base font-extrabold text-gray-800">Venta Actual</h2>
+                    </div>
+                    <button onclick="vaciarCarrito()" class="text-xs text-rose-500 font-bold hover:underline cursor-pointer">Vaciar</button>
+                </div>
+
+                <!-- SELECCIÓN DE CLIENTE -->
+                <div class="mt-3">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Cliente</label>
+                    <select id="selectCliente" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:border-blue-500">
+                        <option value="">Público General</option>
+                        {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}">{{ cliente.nombre }} {% if cliente.telefono %}({{ cliente.telefono }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="listaCarrito" class="divide-y divide-gray-50 my-3 max-h-[200px] overflow-y-auto pr-1">
+                    <div id="carritoVacio" class="text-center py-12 text-gray-400">
+                        <i class="fa-solid fa-basket-shopping text-4xl mb-3 text-gray-200 block"></i>
+                        El carrito está vacío
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-gray-100 space-y-3">
+                
+                <!-- SELECCIÓN DE MÉTODO DE PAGO -->
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">Método de Pago</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="seleccionarMetodoPago('efectivo')" id="btnPagoEfectivo" 
+                            class="metodo-pago-btn border-2 border-blue-600 bg-blue-50 text-blue-700 font-bold py-2 px-1 rounded-xl text-xs text-center transition flex flex-col items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-money-bill-wave text-sm"></i>
+                            Efectivo
+                        </button>
+                        <button type="button" onclick="seleccionarMetodoPago('tarjeta')" id="btnPagoTarjeta" 
+                            class="metodo-pago-btn border-2 border-gray-200 bg-gray-50 text-gray-600 font-bold py-2 px-1 rounded-xl text-xs text-center transition flex flex-col items-center gap-1 hover:border-gray-300 cursor-pointer">
+                            <i class="fa-solid fa-credit-card text-sm"></i>
+                            Tarjeta
+                        </button>
+                        <button type="button" onclick="seleccionarMetodoPago('transferencia')" id="btnPagoTransferencia" 
+                            class="metodo-pago-btn border-2 border-gray-200 bg-gray-50 text-gray-600 font-bold py-2 px-1 rounded-xl text-xs text-center transition flex flex-col items-center gap-1 hover:border-gray-300 cursor-pointer">
+                            <i class="fa-solid fa-building-columns text-sm"></i>
+                            Transfer.
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between text-gray-400">
+                        <span>Cant. Productos:</span>
+                        <span id="cantArticulos" class="font-bold text-gray-700">0</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1">
+                        <span class="text-sm font-bold text-gray-800">TOTAL:</span>
+                        <span id="totalPago" class="text-2xl font-black text-emerald-600">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- DESGLOSE DE PAGO SEGÚN MÉTODO SELECCIONADO -->
+                <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-2">
+                    <!-- Pago en Efectivo -->
+                    <div id="seccionEfectivo">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-gray-600">Paga con ($):</span>
+                            <input type="number" id="montoRecibido" placeholder="0.00" step="0.50" oninput="calcularCambio()"
+                                class="w-24 bg-white border border-gray-200 rounded-xl px-2 py-1 text-right font-black text-gray-800 focus:outline-none focus:border-blue-500 text-xs">
+                        </div>
+                        <div class="flex justify-between items-center text-xs pt-1.5 mt-1.5 border-t border-gray-200/50">
+                            <span class="font-bold text-gray-500">Cambio:</span>
+                            <span id="montoCambio" class="font-black text-blue-600">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Pago con Tarjeta / Transferencia (Referencia) -->
+                    <div id="seccionReferencia" class="hidden">
+                        <label id="lblReferencia" class="block text-[11px] font-bold text-gray-600 mb-1">N° Operación / Autorización</label>
+                        <input type="text" id="inputReferencia" placeholder="Ej: 123456" 
+                            class="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 font-bold text-gray-800 focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <button onclick="procesarVenta()" id="btnCobrar" disabled
+                    class="w-full bg-blue-600 disabled:bg-gray-200 hover:bg-blue-700 disabled:text-gray-400 text-white font-black text-sm py-3.5 rounded-2xl transition shadow-lg shadow-blue-500/20 disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-check"></i> Completar Venta
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL PARA PRODUCTOS A GRANEL -->
+<div id="modalGranel" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+        <div class="flex justify-between items-start">
+            <div>
+                <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">Producto a Granel</span>
+                <h3 id="granelNombre" class="text-base font-extrabold text-gray-800 mt-1">--</h3>
+            </div>
+            <button onclick="cerrarModalGranel()" class="text-gray-400 hover:text-gray-600 text-lg cursor-pointer">&times;</button>
+        </div>
+
+        <div class="space-y-2">
+            <label class="text-xs font-bold text-gray-600">Ingresa la cantidad en Kilogramos (kg):</label>
+            <div class="relative">
+                <input type="number" id="inputPesoGranel" step="0.001" min="0.001" placeholder="Ej: 0.500 ó 1.250" 
+                    class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-lg font-black text-gray-800 focus:outline-none focus:border-blue-500">
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-sm">KG</span>
+            </div>
+            <p class="text-[11px] text-gray-400">Precio por kg: <span id="granelPrecioKg" class="font-bold text-emerald-600">--</span></p>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+            <button onclick="cerrarModalGranel()" class="w-1/2 py-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer">Cancelar</button>
+            <button onclick="confirmarGranel()" class="w-1/2 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 cursor-pointer">Agregar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let carrito = [];
+    let productoGranelSeleccionado = null;
+    let metodoPagoSeleccionado = 'efectivo';
+
+    function seleccionarMetodoPago(metodo) {
+        metodoPagoSeleccionado = metodo;
+        
+        // Resetear botones
+        document.querySelectorAll('.metodo-pago-btn').forEach(btn => {
+            btn.classList.remove('border-blue-600', 'bg-blue-50', 'text-blue-700');
+            btn.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-600');
+        });
+
+        // Activar botón pulsado
+        const btnActivo = document.getElementById(`btnPago${metodo.charAt(0).toUpperCase() + metodo.slice(1)}`);
+        if (btnActivo) {
+            btnActivo.classList.remove('border-gray-200', 'bg-gray-50', 'text-gray-600');
+            btnActivo.classList.add('border-blue-600', 'bg-blue-50', 'text-blue-700');
+        }
+
+        // Mostrar / Ocultar secciones de cobro
+        const seccionEfectivo = document.getElementById('seccionEfectivo');
+        const seccionReferencia = document.getElementById('seccionReferencia');
+        const lblReferencia = document.getElementById('lblReferencia');
+
+        if (metodo === 'efectivo') {
+            seccionEfectivo.classList.remove('hidden');
+            seccionReferencia.classList.add('hidden');
+        } else {
+            seccionEfectivo.classList.add('hidden');
+            seccionReferencia.classList.remove('hidden');
+            lblReferencia.innerText = metodo === 'tarjeta' ? 'N° Autorización / Vouché' : 'N° de Referencia / Rastreo';
+            document.getElementById('inputReferencia').focus();
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function reenfocarBuscador() {
+        const inputBuscar = document.getElementById('inputBuscar');
+        if (inputBuscar) setTimeout(() => inputBuscar.focus(), 100);
+    }
+
+    function manejadorAgregarProducto(btnElement) {
+        const id = btnElement.dataset.id;
+        const nombre = btnElement.dataset.nombre;
+        const precio = parseFloat(btnElement.dataset.precio);
+        const stockMax = parseFloat(btnElement.dataset.stock);
+        const esGranel = btnElement.dataset.esGranel === 'true';
+
+        if (esGranel) {
+            abrirModalGranel({ id, nombre, precio, stockMax });
+        } else {
+            agregarAlCarrito(id, nombre, precio, stockMax, 1, false);
+        }
+    }
+
+    function abrirModalGranel(prod) {
+        productoGranelSeleccionado = prod;
+        document.getElementById('granelNombre').innerText = prod.nombre;
+        document.getElementById('granelPrecioKg').innerText = `$${prod.precio.toFixed(2)}`;
+        
+        const inputPeso = document.getElementById('inputPesoGranel');
+        inputPeso.value = '';
+        
+        const modal = document.getElementById('modalGranel');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        setTimeout(() => inputPeso.focus(), 100);
+    }
+
+    function cerrarModalGranel() {
+        const modal = document.getElementById('modalGranel');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        productoGranelSeleccionado = null;
+        reenfocarBuscador();
+    }
+
+    function confirmarGranel() {
+        const peso = parseFloat(document.getElementById('inputPesoGranel').value);
+        if (!peso || peso <= 0) {
+            alert('Ingresa una cantidad válida en Kilogramos.');
+            return;
+        }
+
+        if (productoGranelSeleccionado) {
+            agregarAlCarrito(
+                productoGranelSeleccionado.id,
+                productoGranelSeleccionado.nombre,
+                productoGranelSeleccionado.precio,
+                productoGranelSeleccionado.stockMax,
+                peso,
+                true
+            );
+            cerrarModalGranel();
+        }
+    }
+
+    const inputPesoGranel = document.getElementById('inputPesoGranel');
+    if (inputPesoGranel) {
+        inputPesoGranel.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmarGranel();
+            }
+        });
+    }
+
+    function agregarAlCarrito(id, nombre, precio, stockMax, cantidad, esGranel) {
+        let item = carrito.find(i => String(i.id) === String(id));
+        
+        if (item) {
+            let nuevaCantidad = item.cantidad + cantidad;
+            if (!esGranel && nuevaCantidad > stockMax) {
+                alert('Stock máximo disponible alcanzado');
+                return;
+            }
+            item.cantidad = nuevaCantidad;
+        } else {
+            carrito.push({ 
+                id, 
+                nombre, 
+                precio: parseFloat(precio), 
+                cantidad: cantidad, 
+                stockMax,
+                esGranel
+            });
+        }
+        actualizarCarritoUI();
+    }
+
+    function eliminarItemCarrito(id) {
+        carrito = carrito.filter(i => String(i.id) !== String(id));
+        actualizarCarritoUI();
+    }
+
+    function vaciarCarrito() {
+        carrito = [];
+        actualizarCarritoUI();
+    }
+
+    function actualizarCarritoUI() {
+        const contenedor = document.getElementById('listaCarrito');
+        const cantArticulosEl = document.getElementById('cantArticulos');
+        const totalPagoEl = document.getElementById('totalPago');
+        const btnCobrar = document.getElementById('btnCobrar');
+
+        if (carrito.length === 0) {
+            contenedor.innerHTML = `
+                <div id="carritoVacio" class="text-center py-12 text-gray-400">
+                    <i class="fa-solid fa-basket-shopping text-4xl mb-3 text-gray-200 block"></i>
+                    El carrito está vacío
+                </div>
+            `;
+            cantArticulosEl.innerText = '0';
+            totalPagoEl.innerText = '$0.00';
+            btnCobrar.disabled = true;
+            calcularCambio();
+            return;
+        }
+
+        let html = '';
+        let totalGeneral = 0;
+        let totalItemsCount = 0;
+
+        carrito.forEach(item => {
+            let subtotal = item.precio * item.cantidad;
+            totalGeneral += subtotal;
+            totalItemsCount += item.esGranel ? 1 : item.cantidad;
+
+            html += `
+                <div class="py-2.5 flex items-center justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-gray-800 truncate">${item.nombre}</p>
+                        <p class="text-[11px] text-gray-400">$${item.precio.toFixed(2)} ${item.esGranel ? 'x kg' : ''} x <span class="font-bold text-gray-600">${item.esGranel ? item.cantidad.toFixed(3) + ' kg' : item.cantidad}</span></p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-black text-gray-800">$${subtotal.toFixed(2)}</span>
+                        <button type="button" onclick="eliminarItemCarrito('${item.id}')" class="text-gray-300 hover:text-rose-500 p-1 transition cursor-pointer">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        contenedor.innerHTML = html;
+        cantArticulosEl.innerText = totalItemsCount;
+        totalPagoEl.innerText = `$${totalGeneral.toFixed(2)}`;
+        btnCobrar.disabled = false;
+        calcularCambio();
+    }
+
+    function calcularCambio() {
+        const totalPagoEl = document.getElementById('totalPago');
+        const totalVal = parseFloat(totalPagoEl.innerText.replace('$', '')) || 0;
+        const montoRecibidoEl = document.getElementById('montoRecibido');
+        const montoRecibido = parseFloat(montoRecibidoEl.value) || 0;
+        const montoCambioEl = document.getElementById('montoCambio');
+
+        let cambio = montoRecibido - totalVal;
+        if (cambio < 0) cambio = 0;
+
+        montoCambioEl.innerText = `$${cambio.toFixed(2)}`;
+    }
+
+    function procesarVenta() {
+        if (carrito.length === 0) return;
+
+        const totalPagoEl = document.getElementById('totalPago');
+        const totalVal = parseFloat(totalPagoEl.innerText.replace('$', '')) || 0;
+        const clienteId = document.getElementById('selectCliente').value;
+        const referenciaPago = document.getElementById('inputReferencia').value.trim();
+
+        if (metodoPagoSeleccionado === 'efectivo') {
+            const montoRecibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
+            if (montoRecibido < totalVal) {
+                alert('El monto recibido es menor al total de la venta.');
+                return;
+            }
+        }
+
+        const itemsVenta = [...carrito];
+        const btnCobrar = document.getElementById('btnCobrar');
+        btnCobrar.disabled = true;
+        btnCobrar.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Procesando...`;
+
+        fetch("{% url 'procesar_venta_api' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                items: itemsVenta.map(i => ({ id: i.id, cantidad: i.cantidad })),
+                cliente_id: clienteId || null,
+                metodo_pago: metodoPagoSeleccionado,
+                referencia_pago: referenciaPago
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.success === true) {
+                window.location.href = data.redirect_url;
+            } else {
+                btnCobrar.disabled = false;
+                btnCobrar.innerHTML = `<i class="fa-solid fa-check"></i> Completar Venta`;
+                alert('Error al procesar la venta: ' + (data.error || 'Respuesta inválida'));
+            }
+        })
+        .catch(error => {
+            btnCobrar.disabled = false;
+            btnCobrar.innerHTML = `<i class="fa-solid fa-check"></i> Completar Venta`;
+            console.error('Error:', error);
+            alert('Ocurrió un error de conexión al procesar la venta.');
+        });
+    }
+</script>
+{% endblock %}

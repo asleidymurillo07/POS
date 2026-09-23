@@ -1,0 +1,143 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+
+    <!-- Encabezado -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-xl font-black text-gray-800 tracking-tight">Gestión de Proveedores</h1>
+            <p class="text-xs text-gray-400">Directorio de distribuidores, marcas y datos de contacto</p>
+        </div>
+
+        <button onclick="toggleModal('modalProveedor')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+            <i class="fa-solid fa-truck-field"></i> + Agregar Proveedor
+        </button>
+    </div>
+
+    <!-- Buscador -->
+    <form method="GET" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar por empresa o persona de contacto..." 
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+        </div>
+    </form>
+
+    <!-- Tabla de Proveedores -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 pb-2">
+                        <th class="pb-3">Empresa / Proveedor</th>
+                        <th class="pb-3">Contacto</th>
+                        <th class="pb-3">Teléfono</th>
+                        <th class="pb-3">Correo</th>
+                        <th class="pb-3 text-center">Productos Asignados</th>
+                        <th class="pb-3 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for prov in proveedores %}
+                    <tr class="hover:bg-gray-50/60 transition">
+                        <td class="py-3.5 font-bold text-gray-800 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-building"></i>
+                            </div>
+                            <span>{{ prov.nombre }}</span>
+                        </td>
+                        <td class="py-3.5 text-gray-600 font-medium">
+                            {% if prov.contacto %}{{ prov.contacto }}{% else %}<span class="text-gray-300">N/A</span>{% endif %}
+                        </td>
+                        <td class="py-3.5 text-gray-600 font-mono">
+                            {% if prov.telefono %}{{ prov.telefono }}{% else %}<span class="text-gray-300">N/A</span>{% endif %}
+                        </td>
+                        <td class="py-3.5 text-gray-500">
+                            {% if prov.email %}{{ prov.email }}{% else %}<span class="text-gray-300">N/A</span>{% endif %}
+                        </td>
+                        <td class="py-3.5 text-center">
+                            <span class="bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-lg text-[11px]">
+                                {{ prov.productos.count }} ítems
+                            </span>
+                        </td>
+                        <td class="py-3.5 text-center">
+                            <a href="{% url 'eliminar_proveedor' prov.id %}" onclick="return confirm('¿Seguro que deseas eliminar este proveedor?')"
+                                class="inline-flex w-7 h-7 rounded-lg bg-gray-100 hover:bg-rose-50 text-gray-600 hover:text-rose-600 transition items-center justify-center">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-10 text-gray-400">
+                            <i class="fa-solid fa-truck-ramp-box text-3xl mb-2 text-gray-300 block"></i>
+                            No hay proveedores registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL REGISTRAR PROVEEDOR -->
+<div id="modalProveedor" class="fixed inset-0 bg-gray-900/40 backdrop-blur-xs hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 w-full max-w-md space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+            <h3 class="text-base font-extrabold text-gray-800">Nuevo Proveedor</h3>
+            <button type="button" onclick="toggleModal('modalProveedor')" class="text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+        </div>
+
+        <form method="POST" class="space-y-3 text-xs">
+            {% csrf_token %}
+            <div>
+                <label class="font-bold text-gray-700 block mb-1">Nombre de la Empresa *</label>
+                <input type="text" name="nombre" required placeholder="Ej. Sabritas, Bimbo, Coca-Cola..."
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="font-bold text-gray-700 block mb-1">Persona de Contacto</label>
+                    <input type="text" name="contacto" placeholder="Ej. Juan Pérez"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="font-bold text-gray-700 block mb-1">Teléfono</label>
+                    <input type="text" name="telefono" placeholder="6671234567"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="font-bold text-gray-700 block mb-1">Correo Electrónico</label>
+                <input type="email" name="email" placeholder="contacto@proveedor.com"
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="font-bold text-gray-700 block mb-1">Dirección / Notas</label>
+                <textarea name="direccion" rows="2" placeholder="Dirección de la bodega o agente de ventas..."
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500"></textarea>
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2">
+                <button type="button" onclick="toggleModal('modalProveedor')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-xl">Cancelar</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl shadow-md shadow-blue-500/20">Guardar Proveedor</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleModal(id) {
+    const modal = document.getElementById(id);
+    if(modal) modal.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

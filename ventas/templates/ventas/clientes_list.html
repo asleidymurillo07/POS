@@ -1,0 +1,89 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+
+    <!-- Mensajes de Alerta -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="p-4 text-xs font-bold text-emerald-800 bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-3">
+                <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
+                <span>{{ message }}</span>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Encabezado Principal -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-users text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black text-gray-800 tracking-tight">Directorio de Clientes</h1>
+                <p class="text-xs text-gray-400 font-medium">Gestión y registro de clientes registrados</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <!-- Formulario de Búsqueda -->
+            <form method="GET" action="{% url 'lista_clientes' %}" class="flex items-center bg-gray-50 p-1.5 rounded-2xl border border-gray-200 w-full sm:w-auto">
+                <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2 text-xs"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar cliente..." class="bg-transparent border-none py-1 px-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-0 w-full">
+                {% if query %}
+                    <a href="{% url 'lista_clientes' %}" class="text-xs text-rose-500 hover:text-rose-700 px-2 font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </a>
+                {% endif %}
+            </form>
+
+            <a href="{% url 'crear_cliente' %}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md shadow-blue-600/20 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabla de Clientes -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 pb-2">
+                        <th class="pb-3">Nombre</th>
+                        <th class="pb-3">Teléfono</th>
+                        <th class="pb-3">Correo Electrónico</th>
+                        <th class="pb-3">Dirección</th>
+                        <th class="pb-3 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for cliente in clientes %}
+                    <tr class="hover:bg-blue-50/30 transition">
+                        <td class="py-3 font-bold text-gray-800">{{ cliente.nombre }}</td>
+                        <td class="py-3 text-gray-600 font-medium">{{ cliente.telefono|default:"-" }}</td>
+                        <td class="py-3 text-gray-600 font-medium">{{ cliente.email|default:"-" }}</td>
+                        <td class="py-3 text-gray-500 max-w-xs truncate">{{ cliente.direccion|default:"-" }}</td>
+                        <td class="py-3 text-center space-x-1">
+                            <a href="{% url 'editar_cliente' cliente.id %}" class="bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white font-bold px-2.5 py-1 rounded-xl transition inline-block text-[11px]">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <a href="{% url 'eliminar_cliente' cliente.id %}" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-bold px-2.5 py-1 rounded-xl transition inline-block text-[11px]">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-12 text-gray-400">
+                            <i class="fa-solid fa-users-slash text-3xl mb-2 block"></i>
+                            No se encontraron clientes registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

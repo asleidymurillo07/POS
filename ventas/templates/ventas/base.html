@@ -1,0 +1,214 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Pasadita POS</title>
+
+    <!-- FAVICON -->
+    <link rel="shortcut icon" href="{% static 'icono.ico' %}" type="image/x-icon">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts (Plus Jakarta Sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* REGLAS DE IMPRESIÓN DE ALTO IMPACTO */
+        @media print {
+            aside, header, nav, .print\:hidden {
+                display: none !important;
+            }
+            body, html {
+                background: #ffffff !important;
+                color: #000000 !important;
+                overflow: visible !important;
+                height: auto !important;
+            }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-xs {
+                box-shadow: none !important;
+            }
+            .border {
+                border-color: #e2e8f0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased bg-slate-50 flex overflow-x-hidden">
+
+    <!-- SIDEBAR (Oculto en Impresión) -->
+    <aside class="print:hidden w-64 bg-slate-900 text-slate-300 flex flex-col justify-between p-5 min-h-screen border-r border-slate-800 shrink-0">
+        <div class="space-y-8">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 px-2 pt-2">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-store text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-extrabold text-white tracking-tight leading-none">La Pasadita</h1>
+                    <span class="text-[10px] font-bold text-blue-400 tracking-wider uppercase">Point of Sale</span>
+                </div>
+            </div>
+
+            <!-- Navegación -->
+            <nav class="space-y-1.5">
+                <p class="px-3 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Menú Principal</p>
+
+                <!-- Dashboard -->
+                <a href="{% url 'dashboard' %}" 
+                   class="{% if request.resolver_match.url_name == 'dashboard' %}bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25{% else %}text-slate-400 hover:text-white hover:bg-slate-800/60 font-semibold{% endif %} flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs transition-all">
+                    <i class="fa-solid fa-chart-pie text-base w-5"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <!-- POS / Caja -->
+                <a href="{% url 'pos' %}" 
+                   class="{% if request.resolver_match.url_name == 'pos' %}bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25{% else %}text-slate-400 hover:text-white hover:bg-slate-800/60 font-semibold{% endif %} flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs transition-all">
+                    <i class="fa-solid fa-cash-register text-base w-5"></i>
+                    <span>Caja / Venta</span>
+                </a>
+
+                <!-- Productos -->
+                <a href="{% url 'productos' %}" 
+                   class="{% if request.resolver_match.url_name == 'productos' %}bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25{% else %}text-slate-400 hover:text-white hover:bg-slate-800/60 font-semibold{% endif %} flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs transition-all">
+                    <i class="fa-solid fa-boxes-stacked text-base w-5"></i>
+                    <span>Productos</span>
+                </a>
+
+                <!-- Proveedores -->
+                <a href="{% url 'proveedores' %}" 
+                   class="{% if request.resolver_match.url_name == 'proveedores' %}bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25{% else %}text-slate-400 hover:text-white hover:bg-slate-800/60 font-semibold{% endif %} flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs transition-all">
+                    <i class="fa-solid fa-truck-field text-base w-5"></i>
+                    <span>Proveedores</span>
+                </a>
+                <!-- clientes -->
+                <a href="{% url 'lista_clientes' %}" 
+                class="{% if request.resolver_match.url_name == 'lista_clientes' or request.resolver_match.url_name == 'crear_cliente' or request.resolver_match.url_name == 'editar_cliente' %}bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25{% else %}text-slate-400 hover:text-white hover:bg-slate-800/80{% endif %} flex items-center gap-3 px-4 py-3 rounded-2xl text-xs transition-all duration-200 group">
+                    <i class="fa-solid fa-users text-base w-5 text-center transition-transform group-hover:scale-110"></i>
+                    <span>Clientes</span>
+                </a>
+
+                <!-- Corte de Caja -->
+                <a href="{% url 'corte_caja' %}" 
+                   class="{% if request.resolver_match.url_name == 'corte_caja' %}bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25{% else %}text-slate-400 hover:text-white hover:bg-slate-800/60 font-semibold{% endif %} flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs transition-all">
+                    <i class="fa-solid fa-receipt text-base w-5"></i>
+                    <span>Corte de Caja</span>
+                </a>
+
+                <!-- Panel Admin -->
+                {% if user.is_staff %}
+                    <p class="px-3 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider pt-4 mb-2">Ajustes</p>
+
+                    <!-- Panel Admin -->
+                    <a href="/admin/" target="_blank" 
+                    class="text-slate-400 hover:text-white hover:bg-slate-800/60 font-semibold flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-xs transition-all">
+                        <i class="fa-solid fa-sliders text-base w-5"></i>
+                        <span>Administración</span>
+                    </a>
+                {% endif %}
+            </nav>
+        </div>
+
+        <!-- User Profile Card -->
+        <!-- User Profile Card con función de Cambiar Usuario / Logout -->
+        <div class="pt-4 border-t border-slate-800">
+            <!-- Formulario oculto para el Logout de Django -->
+            <form action="{% url 'logout' %}" method="post" id="logout-form" class="hidden">
+                {% csrf_token %}
+            </form>
+
+            <a href="#" 
+               onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+               class="bg-slate-800/50 hover:bg-slate-800 p-3 rounded-2xl flex items-center justify-between border border-slate-700/50 transition-all cursor-pointer group"
+               title="Clic para cambiar de usuario">
+                
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-900 font-extrabold flex items-center justify-center text-sm shadow-md shrink-0 group-hover:scale-105 transition-transform">
+                        {{ user.username|default:"C"|slice:":1"|upper }}
+                    </div>
+                    <div class="overflow-hidden">
+                        <p class="text-xs font-bold text-white truncate group-hover:text-blue-400 transition-colors">
+                            {{ user.username|default:"Cajero" }}
+                        </p>
+                        <p class="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span> Cambiar usuario
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Ícono de Salir / Logout -->
+                <i class="fa-solid fa-right-from-bracket text-slate-400 group-hover:text-rose-400 transition-colors text-xs pr-1"></i>
+            </a>
+        </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+
+        <!-- TOPBAR (Oculto en Impresión) -->
+        <header class="print:hidden h-20 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+            <!-- Título / Estado -->
+            <div>
+                <span class="text-xs font-bold text-slate-400">Sistema POS</span>
+                <h2 class="text-sm font-extrabold text-slate-800">Panel de Control</h2>
+            </div>
+
+            <!-- Acciones rápidas -->
+            <div class="flex items-center gap-3">
+                <div class="hidden sm:flex items-center gap-2 bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200/60 text-slate-500 text-xs font-semibold">
+                    <i class="fa-regular fa-clock text-blue-600"></i>
+                    <span id="relojServidor">--:-- --</span>
+                </div>
+
+                <a href="{% url 'pos' %}" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs px-3.5 py-2 rounded-xl border border-blue-100 transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-xs"></i> Nueva Venta
+                </a>
+            </div>
+        </header>
+
+        <!-- CONTENIDO DINÁMICO DE LAS VISTAS -->
+        <main class="p-8 flex-1">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Reloj dinámico en el Topbar
+        function actualizarReloj() {
+            const relojElem = document.getElementById('relojServidor');
+            if (relojElem) {
+                const ahora = new Date();
+                const opciones = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+                relojElem.innerText = ahora.toLocaleTimeString('es-MX', opciones);
+            }
+        }
+        setInterval(actualizarReloj, 1000);
+        actualizarReloj();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

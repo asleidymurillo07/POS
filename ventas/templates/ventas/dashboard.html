@@ -1,0 +1,209 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+
+    <!-- Encabezado del Dashboard -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-chart-pie text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black text-gray-800 tracking-tight">Panel Principal</h1>
+                <p class="text-xs text-gray-400 font-medium">Resumen del rendimiento general y métricas en tiempo real</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="{% url 'pos' %}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-cart-plus"></i> Nueva Venta
+            </a>
+            <a href="{% url 'corte_caja' %}" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center gap-2">
+                <i class="fa-solid fa-calculator"></i> Corte de Caja
+            </a>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE MÉTRICAS (KPIs) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <!-- Ventas Realizadas Hoy -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex justify-between items-start group hover:border-blue-200 transition">
+            <div>
+                <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ventas de Hoy</span>
+                <h3 class="text-3xl font-black text-gray-800 mt-1">{{ ventas_hoy }}</h3>
+                <div class="mt-2 text-[11px] font-semibold {% if dif_ventas_pct >= 0 %}text-emerald-600{% else %}text-rose-500{% endif %} flex items-center gap-1">
+                    <i class="fa-solid {% if dif_ventas_pct >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                    <span>{% if dif_ventas_pct >= 0 %}+{% endif %}{{ dif_ventas_pct|floatformat:1 }}% vs ayer</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-bag-shopping"></i>
+            </div>
+        </div>
+
+        <!-- Ingresos Brutos Hoy -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex justify-between items-start group hover:border-emerald-200 transition">
+            <div>
+                <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ingresos de Hoy</span>
+                <h3 class="text-3xl font-black text-emerald-600 mt-1">${{ ingresos_hoy|floatformat:2 }}</h3>
+                <div class="mt-2 text-[11px] font-semibold {% if dif_ingresos_pct >= 0 %}text-emerald-600{% else %}text-rose-500{% endif %} flex items-center gap-1">
+                    <i class="fa-solid {% if dif_ingresos_pct >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                    <span>{% if dif_ingresos_pct >= 0 %}+{% endif %}{{ dif_ingresos_pct|floatformat:1 }}% vs ayer</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-dollar-sign"></i>
+            </div>
+        </div>
+
+        <!-- Ganancia Neta Hoy -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex justify-between items-start group hover:border-indigo-200 transition">
+            <div>
+                <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ganancia Neta Hoy</span>
+                <h3 class="text-3xl font-black text-indigo-600 mt-1">${{ ganancia_hoy|floatformat:2 }}</h3>
+                <p class="mt-2 text-[11px] font-medium text-gray-400">Total libre de costo</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-bold group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+        </div>
+
+        <!-- Alerta Bajo Stock -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex justify-between items-start group hover:border-rose-200 transition">
+            <div>
+                <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Alertas de Stock</span>
+                <h3 class="text-3xl font-black {% if productos_bajo_stock_count > 0 %}text-rose-500{% else %}text-gray-800{% endif %} mt-1">{{ productos_bajo_stock_count }}</h3>
+                <p class="mt-2 text-[11px] font-medium {% if productos_bajo_stock_count > 0 %}text-rose-500 font-bold{% else %}text-gray-400{% endif %}">
+                    {% if productos_bajo_stock_count > 0 %}Requieren reabastecer{% else %}Inventario óptimo{% endif %}
+                </p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl {% if productos_bajo_stock_count > 0 %}bg-rose-50 text-rose-500{% else %}bg-gray-50 text-gray-400{% endif %} flex items-center justify-center text-xl font-bold group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SECCIÓN SECUNDARIA: TABLA DE VENTAS RECIENTES Y ALERTAS DE INVENTARIO -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Tabla de Últimas Órdenes (Ocupa 2 columnas) -->
+        <div class="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-gray-800">Órdenes Recientes</h3>
+                            <p class="text-xs text-gray-400">Últimas transacciones completadas</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'corte_caja' %}" class="text-xs font-bold text-blue-600 hover:text-blue-700 transition">Ver reporte &rarr;</a>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 pb-2">
+                                <th class="pb-3">Folio</th>
+                                <th class="pb-3">Fecha / Hora</th>
+                                <th class="pb-3 text-center">Estado</th>
+                                <th class="pb-3 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            {% for venta in ultimas_ventas %}
+                            <tr class="hover:bg-gray-50/50 transition">
+                                <td class="py-3.5 font-bold text-gray-800">
+                                    <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg font-mono text-[11px]">#{{ venta.id }}</span>
+                                </td>
+                                <td class="py-3.5 text-gray-500 font-medium">
+                                    {{ venta.fecha|date:"d M, h:i A" }}
+                                </td>
+                                <td class="py-3.5 text-center">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Completado
+                                    </span>
+                                </td>
+                                <td class="py-3.5 text-right font-black text-gray-800">${{ venta.total|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-10 text-gray-400">
+                                    <i class="fa-solid fa-receipt text-3xl mb-2 text-gray-300 block"></i>
+                                    No hay ventas registradas aún.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Alertas de Productos Bajo Stock y Top Vendidos -->
+        <div class="space-y-6">
+
+            <!-- Card: Productos con Bajo Stock -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-stacked text-amber-500"></i>
+                        <h3 class="text-sm font-extrabold text-gray-800">Productos con Poco Stock</h3>
+                    </div>
+                    <a href="{% url 'productos' %}" class="text-xs font-bold text-blue-600 hover:text-blue-700">Inventario &rarr;</a>
+                </div>
+
+                <div class="space-y-3">
+                    {% for prod in productos_bajo_stock %}
+                    <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div>
+                            <p class="text-xs font-bold text-gray-800">{{ prod.nombre }}</p>
+                            <p class="text-[10px] text-gray-400">Precio Venta: ${{ prod.precio_venta }}</p>
+                        </div>
+                        <span class="px-2.5 py-1 text-[11px] font-black rounded-xl {% if prod.stock <= 0 %}bg-rose-100 text-rose-600{% else %}bg-amber-100 text-amber-700{% endif %}">
+                            {{ prod.stock }} unid.
+                        </span>
+                    </div>
+                    {% empty %}
+                    <p class="text-xs text-center py-4 text-emerald-600 font-semibold">
+                        <i class="fa-solid fa-circle-check mr-1"></i> Todo el stock está en niveles aceptables.
+                    </p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Card: Top Productos Vendidos -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center gap-2 pb-3 border-b border-gray-100 mb-4">
+                    <i class="fa-solid fa-fire text-orange-500"></i>
+                    <h3 class="text-sm font-extrabold text-gray-800">Top Más Vendidos</h3>
+                </div>
+
+                <div class="space-y-3">
+                    {% for item in top_productos %}
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs">
+                                {{ forloop.counter }}
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">{{ item.producto__nombre }}</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-800">{{ item.total_vendido }} pcs</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-xs text-center py-4 text-gray-400">Sin estadísticas disponibles.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

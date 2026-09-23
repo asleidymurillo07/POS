@@ -1,0 +1,74 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<style>
+.border-dashed {
+    border-style: dashed !important;
+}
+</style>
+
+<div class="max-w-md mx-auto space-y-4 pb-12">
+
+    <!-- Botón de Regresar (Único cambio estructural para poder volver) -->
+    <div>
+        <a href="{% url 'corte_caja' %}" class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold px-4 py-2.5 rounded-2xl border border-gray-200 shadow-sm transition text-xs">
+            <i class="fa-solid fa-arrow-left"></i> Regresar al Corte de Caja
+        </a>
+    </div>
+
+    <!-- Contenedor Estilo Ticket que ya tenías -->
+    <div class="w-full bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col">
+        
+        <div class="text-center mb-4">
+            <span class="inline-block bg-blue-50 text-blue-600 border border-blue-100 mb-2 px-3 py-1 rounded-full text-xs font-bold">
+                <i class="fa-solid fa-receipt"></i> Detalle de Ticket Histórico
+            </span>
+            <h3 class="text-lg font-black text-gray-800">La Pasadita</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{{ venta.fecha|date:"d/m/Y H:i" }}</p>
+            <div class="text-xs text-gray-500 font-semibold mt-1">
+                Folio: #<span class="font-mono text-gray-800">{{ venta.id }}</span>
+            </div>
+            <div class="text-[11px] text-gray-400 mt-0.5">
+                Cajero: <span class="font-bold text-gray-600">{% if venta.cajero %}{{ venta.cajero.username }}{% else %}General{% endif %}</span>
+            </div>
+        </div>
+
+        <hr class="border-dashed border-gray-200 my-3">
+
+        <div class="overflow-y-auto mb-4 max-h-52 pr-1">
+            <table class="w-full text-left border-collapse">
+                <thead class="border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase">
+                    <tr>
+                        <th class="pb-2">Cant.</th>
+                        <th class="pb-2">Producto</th>
+                        <th class="pb-2 text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody class="text-xs text-gray-700 divide-y divide-gray-50">
+                    {% for item in detalles %}
+                    <tr>
+                        <td class="py-2 font-semibold text-gray-600">{{ item.cantidad }}</td>
+                        <td class="py-2 font-bold text-gray-800">{{ item.producto.nombre|default:"Producto eliminado" }}</td>
+                        <td class="py-2 text-right font-mono font-bold text-gray-800">${{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <hr class="border-dashed border-gray-200 my-3">
+
+        <div class="bg-gray-50 p-4 rounded-2xl mb-5 space-y-2 text-xs">
+            <div class="flex justify-between items-center text-sm pt-1">
+                <span class="font-extrabold text-gray-800">TOTAL PAGADO:</span>
+                <span class="font-mono font-black text-blue-600 text-xl">${{ venta.total }}</span>
+            </div>
+        </div>
+
+        <!-- Botón de Impresión o Volver opcional dentro del ticket -->
+        <button onclick="window.print()" class="w-full bg-gray-900 hover:bg-black text-white font-extrabold text-sm py-3 rounded-2xl shadow-md transition text-center block cursor-pointer flex items-center justify-center gap-2">
+            <i class="fa-solid fa-print"></i> Imprimir Ticket
+        </button>
+    </div>
+</div>
+{% endblock %}

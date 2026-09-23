@@ -1,0 +1,579 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<!-- Estilos especiales para impresión -->
+<style>
+    @media print {
+        aside, sidebar, nav, header, .no-print, button, form {
+            display: none !important;
+        }
+
+        body {
+            background-color: white !important;
+            color: black !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+        }
+
+        main, .content, #content, div[class*="pl-"], div[class*="ml-"] {
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .shadow-sm, .shadow-xl, .shadow-md, .shadow-lg {
+            box-shadow: none !important;
+        }
+
+        .border {
+            border: 1px solid #e5e7eb !important;
+        }
+    }
+</style>
+
+<!-- JSON nativo seguro para JavaScript con la lista de ventas y sus detalles -->
+{{ ventas_lista|json_script:"ventas-data" }}
+
+<div class="space-y-6 pb-12">
+
+    <!-- Mensajes de Alerta -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="no-print p-4 text-xs font-bold text-emerald-800 bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-3">
+                <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
+                <span>{{ message }}</span>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Encabezado Principal y Controles -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-calculator text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black text-gray-800 tracking-tight">Corte de Caja / Reportes</h1>
+                <p class="text-xs text-gray-400 font-medium">Búsqueda por fecha, auditoría e impresión de reportes</p>
+            </div>
+        </div>
+
+        <div class="no-print flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            
+            <!-- Filtro por Fecha -->
+            <form method="GET" action="{% url 'corte_caja' %}" class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
+                <i class="fa-regular fa-calendar text-gray-400 ml-2 text-xs"></i>
+                <input type="date" name="fecha" value="{{ fecha_filtro }}" onchange="this.form.submit()" class="bg-transparent border-none py-1 text-xs font-bold text-gray-700 focus:outline-none focus:ring-0">
+                {% if fecha_filtro %}
+                    <a href="{% url 'corte_caja' %}" class="text-xs text-rose-500 hover:text-rose-700 px-2 font-bold" title="Limpiar filtro">
+                        <i class="fa-solid fa-xmark"></i>
+                    </a>
+                {% endif %}
+            </form>
+
+            <!-- Selector de Cortes -->
+            <form method="GET" action="{% url 'corte_caja' %}" class="flex items-center bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
+                {% if fecha_filtro %}
+                    <input type="hidden" name="fecha" value="{{ fecha_filtro }}">
+                {% endif %}
+                <select name="corte_id" onchange="this.form.submit()" class="bg-transparent border-none px-3 py-1 text-xs font-bold text-gray-700 focus:outline-none focus:ring-0">
+                    {% for c in historial_cortes %}
+                        <option value="{{ c.id }}" {% if corte_actual.id == c.id %}selected{% endif %}>
+                            Corte #{{ c.id }} - {{ c.fecha_inicio|date:"d/m/Y H:i" }} {% if not c.cerrado %}(En Curso){% else %}(Cerrado){% endif %}
+                        </option>
+                    {% empty %}
+                        <option value="">No hay cortes en esta fecha</option>
+                    {% endfor %}
+                </select>
+            </form>
+            
+            <!-- Cerrar Caja Activa -->
+            {% if es_corte_activo %}
+            <form method="POST" action="{% url 'corte_caja' %}">
+                {% csrf_token %}
+                <button type="submit" name="cerrar_corte" onclick="return confirm('¿Deseas cerrar la caja activa? Las ventas siguientes pertenecerán a un nuevo periodo.');" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-lock"></i> Cerrar Caja Activa
+                </button>
+            </form>
+            {% endif %}
+
+            <!-- Imprimir -->
+            <button onclick="window.print()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-print"></i> Imprimir Reporte
+            </button>
+        </div>
+    </div>
+
+    <!-- Banner Informativo -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 flex justify-between items-center text-xs font-medium text-blue-900">
+        <div class="flex items-center gap-3">
+            <span class="relative flex h-3 w-3 no-print">
+              <span class="{% if es_corte_activo %}animate-ping{% endif %} absolute inline-flex h-full w-full rounded-full {% if es_corte_activo %}bg-emerald-400{% else %}bg-gray-400{% endif %} opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 {% if es_corte_activo %}bg-emerald-600{% else %}bg-gray-600{% endif %}"></span>
+            </span>
+            <span>Reporte del <strong class="font-bold uppercase tracking-wider text-blue-700">Corte #{{ corte_actual.id }}</strong> (Inicio: {{ corte_actual.fecha_inicio|date:"d/m/Y H:i" }})</span>
+        </div>
+        <span class="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-xl font-bold border border-blue-200/50 {% if es_corte_activo %}text-emerald-700{% else %}text-gray-600{% endif %}">
+            Status: {% if es_corte_activo %}Caja En Curso{% else %}Caja Cerrada (Cierre: {{ corte_actual.fecha_cierre|date:"d/m/Y H:i" }}){% endif %}
+        </span>
+    </div>
+
+    <!-- Tarjetas de Métricas -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <!-- Total Recaudado -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ventas Totales</span>
+                    <h3 class="text-2xl font-black text-gray-800 mt-1">${{ ingresos_totales|floatformat:2|default:"0.00" }}</h3>
+                </div>
+                <div class="no-print w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+                    <i class="fa-solid fa-money-bill-wave"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center text-[11px] text-gray-400">
+                <span>Total Bruto Ingresado</span>
+                <span class="text-emerald-600 font-bold">100%</span>
+            </div>
+        </div>
+
+        <!-- Ganancia Neta -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ganancia Neta</span>
+                    <h3 class="text-2xl font-black text-emerald-600 mt-1">${{ ganancia_total|floatformat:2|default:"0.00" }}</h3>
+                </div>
+                <div class="no-print w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center text-[11px] text-gray-400">
+                <span>Margen Estimado:</span>
+                <span class="text-blue-600 font-bold">{{ margen_ganancia|floatformat:1|default:"0.0" }}%</span>
+            </div>
+        </div>
+
+        <!-- Número de Tickets -->
+        <div onclick="abrirModalListaTickets()" class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between cursor-pointer hover:border-blue-300 transition group relative overflow-hidden">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">N° de Tickets</span>
+                    <h3 class="text-2xl font-black text-gray-800 mt-1">{{ total_ventas_count }}</h3>
+                </div>
+                <div class="no-print w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold group-hover:bg-blue-600 group-hover:text-white transition">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center text-[11px] text-gray-400">
+                <span>Ticket Promedio:</span>
+                <span class="font-bold text-gray-600">${{ ticket_promedio|floatformat:2|default:"0.00" }}</span>
+            </div>
+            <div class="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition pointer-events-none"></div>
+        </div>
+
+        <!-- Productos Vendidos -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Productos Vendidos</span>
+                    <h3 class="text-2xl font-black text-purple-600 mt-1">{{ total_articulos|floatformat:0|default:"0" }} <span class="text-xs font-normal text-gray-400">unid.</span></h3>
+                </div>
+                <div class="no-print w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg font-bold">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center text-[11px] text-gray-400">
+                <span>Costo Mercadería:</span>
+                <span class="text-gray-600 font-bold">${{ costo_total|floatformat:2|default:"0.00" }}</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Resumen de Arqueo Físico y Métodos de Pago -->
+    <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 text-white shadow-xl">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-700/60 mb-6">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-vault text-amber-400 text-xl"></i>
+                <h3 class="font-bold text-base tracking-wide">Resumen de Arqueo y Formas de Pago</h3>
+            </div>
+            <span class="text-xs text-gray-400 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">Corte #{{ corte_actual.id }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Efectivo -->
+            <div class="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-400 font-semibold uppercase">Efectivo en Caja</p>
+                    <i class="fa-solid fa-money-bill-wave text-emerald-400 text-sm"></i>
+                </div>
+                <p class="text-2xl font-black text-emerald-400 mt-1">${{ ventas_efectivo|floatformat:2|default:"0.00" }}</p>
+                <p class="text-[10px] text-gray-500 mt-1">Monto a verificar físicamente</p>
+            </div>
+
+            <!-- Tarjeta -->
+            <div class="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-400 font-semibold uppercase">Ventas Tarjeta</p>
+                    <i class="fa-solid fa-credit-card text-blue-400 text-sm"></i>
+                </div>
+                <p class="text-2xl font-black text-blue-400 mt-1">${{ ventas_tarjeta|floatformat:2|default:"0.00" }}</p>
+                <p class="text-[10px] text-gray-500 mt-1">Comprobantes / Vouchers</p>
+            </div>
+
+            <!-- Transferencia -->
+            <div class="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-400 font-semibold uppercase">Transferencias</p>
+                    <i class="fa-solid fa-building-columns text-purple-400 text-sm"></i>
+                </div>
+                <p class="text-2xl font-black text-purple-400 mt-1">${{ ventas_transferencia|floatformat:2|default:"0.00" }}</p>
+                <p class="text-[10px] text-gray-500 mt-1">Acreditado en banco</p>
+            </div>
+
+            <!-- Ganancia Neta -->
+            <div class="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-400 font-semibold uppercase">Ganancia Neta</p>
+                    <i class="fa-solid fa-chart-line text-amber-400 text-sm"></i>
+                </div>
+                <p class="text-2xl font-black text-amber-400 mt-1">${{ ganancia_total|floatformat:2|default:"0.00" }}</p>
+                <p class="text-[10px] text-gray-500 mt-1">Utilidad del periodo</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tablas Inferiores -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Top Productos -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="no-print w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-gray-800">Productos Vendidos</h3>
+                </div>
+                <span class="text-xs text-gray-400 font-medium">{{ productos_vendidos|length }} Ítems</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 pb-2">
+                            <th class="pb-2">Producto</th>
+                            <th class="pb-2 text-center">Piezas</th>
+                            <th class="pb-2 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for prod in productos_vendidos %}
+                        <tr>
+                            <td class="py-3 font-semibold text-gray-800">{{ prod.producto__nombre }}</td>
+                            <td class="py-3 text-center font-bold text-gray-800">{{ prod.total_cantidad }}</td>
+                            <td class="py-3 text-right font-black text-emerald-600">${{ prod.total_recaudado|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-8 text-gray-400">Sin movimientos en este periodo.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tabla de Tickets Directa -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="no-print w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-gray-800">Tickets del Periodo</h3>
+                </div>
+                <span class="text-xs text-gray-400 font-medium">{{ total_ventas_count }} Transacciones</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 pb-2">
+                            <th class="pb-2">Folio</th>
+                            <th class="pb-2">Hora</th>
+                            <th class="pb-2">Cajero</th>
+                            <th class="pb-2">Cliente</th>
+                            <th class="pb-2">Método</th>
+                            <th class="pb-2 text-right">Monto</th>
+                            <th class="pb-2 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for venta in ventas %}
+                        <tr>
+                            <td class="py-3 font-bold text-gray-800">#{{ venta.id }}</td>
+                            <td class="py-3 text-gray-500 font-medium">{{ venta.fecha|date:"H:i" }}</td>
+                            <td class="py-3 font-semibold text-gray-600">
+                                {% if venta.cajero %}{{ venta.cajero.get_full_name|default:venta.cajero.username }}{% else %}General{% endif %}
+                            </td>
+                            <td class="py-3 font-medium text-gray-700">
+                                {% if venta.cliente %}{{ venta.cliente.nombre }}{% else %}<span class="text-gray-400 italic">Público General</span>{% endif %}
+                            </td>
+                            <td class="py-3 font-semibold text-gray-600 uppercase text-[10px]">
+                                {{ venta.get_metodo_pago_display|default:venta.metodo_pago }}
+                            </td>
+                            <td class="py-3 text-right font-black text-gray-800">${{ venta.total|floatformat:2 }}</td>
+                            <td class="py-3 text-center">
+                                <button onclick="verDetalleTicket('{{ venta.id }}')" 
+                                class="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white font-bold px-2.5 py-1 rounded-xl transition inline-block text-[11px] cursor-pointer">
+                                    <i class="fa-solid fa-eye"></i> Ver
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-gray-400">No hay tickets emitidos.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL 1: LISTADO DE TICKETS -->
+<div id="modalListaTickets" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <div>
+                <h3 class="text-base font-extrabold text-gray-800">Tickets del Corte Actual (#{{ corte_actual.id }})</h3>
+                <p class="text-xs text-gray-400">Haz clic en "Ver Ticket" para consultar su desglose</p>
+            </div>
+            <button onclick="cerrarModalListaTickets()" class="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">&times;</button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 pr-1 space-y-2">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 text-[11px] font-bold text-gray-400 uppercase">
+                    <tr>
+                        <th class="p-3 rounded-l-xl">Folio</th>
+                        <th class="p-3">Hora</th>
+                        <th class="p-3">Cajero</th>
+                        <th class="p-3">Cliente</th>
+                        <th class="p-3">Método</th>
+                        <th class="p-3 text-right">Total</th>
+                        <th class="p-3 text-center rounded-r-xl">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="text-xs text-gray-700 divide-y divide-gray-50">
+                    {% for venta in ventas %}
+                    <tr class="hover:bg-blue-50/40 transition">
+                        <td class="p-3 font-mono font-bold text-gray-800">#{{ venta.id }}</td>
+                        <td class="p-3 text-gray-500">{{ venta.fecha|date:"H:i:s" }}</td>
+                        <td class="p-3 font-semibold text-gray-600">
+                            {% if venta.cajero %}{{ venta.cajero.get_full_name|default:venta.cajero.username }}{% else %}General{% endif %}
+                        </td>
+                        <td class="p-3 font-medium text-gray-700">
+                            {% if venta.cliente %}{{ venta.cliente.nombre }}{% else %}<span class="text-gray-400 italic">Público General</span>{% endif %}
+                        </td>
+                        <td class="p-3 font-semibold text-gray-600 uppercase text-[10px]">
+                            {{ venta.get_metodo_pago_display|default:venta.metodo_pago }}
+                        </td>
+                        <td class="p-3 text-right font-mono font-black text-emerald-600">${{ venta.total|floatformat:2 }}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="verDetalleTicket('{{ venta.id }}')"
+                                class="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white font-bold px-3 py-1.5 rounded-xl transition inline-block cursor-pointer">
+                                <i class="fa-solid fa-eye text-xs"></i> Ver Ticket
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-gray-400">
+                            No hay tickets registrados en este corte.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pt-2 border-t border-gray-100 flex justify-end">
+            <button onclick="cerrarModalListaTickets()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: VISTA DETALLADA DEL TICKET -->
+<div id="modalDetalleTicket" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative flex flex-col">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-blue-600"></i>
+                <h3 class="text-sm font-extrabold text-gray-800" id="ticketModalTitle">Detalle de Ticket</h3>
+            </div>
+            <button onclick="cerrarDetalleTicket()" class="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">&times;</button>
+        </div>
+
+        <!-- Información general -->
+        <div class="bg-gray-50 p-3 rounded-2xl text-xs space-y-1 text-gray-600">
+            <div class="flex justify-between">
+                <span>Fecha:</span>
+                <span class="font-bold text-gray-800" id="ticketModalFecha">-</span>
+            </div>
+            <div class="flex justify-between">
+                <span>Cajero:</span>
+                <span class="font-bold text-gray-800" id="ticketModalCajero">-</span>
+            </div>
+            <div class="flex justify-between border-t border-gray-100 pt-1">
+                <span>Cliente:</span>
+                <span class="font-bold text-blue-600" id="ticketModalCliente">Público General</span>
+            </div>
+            <div class="flex justify-between border-t border-gray-100 pt-1">
+                <span>Método de Pago:</span>
+                <span class="font-bold text-gray-800" id="ticketModalMetodoPago">-</span>
+            </div>
+            <div class="flex justify-between hidden" id="ticketModalRowReferencia">
+                <span>Referencia:</span>
+                <span class="font-bold text-purple-600" id="ticketModalReferencia">-</span>
+            </div>
+        </div>
+
+        <!-- Tabla con los productos -->
+        <div class="overflow-y-auto max-h-56 pr-1">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="text-gray-400 font-bold uppercase text-[10px] border-b border-gray-100 pb-1">
+                        <th class="pb-1">Cant. / Producto</th>
+                        <th class="pb-1 text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50" id="ticketModalProductos">
+                    <!-- Dinámico con JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Total de la Venta -->
+        <div class="pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span class="text-xs font-bold text-gray-500 uppercase">Total Venta:</span>
+            <span class="text-base font-black text-emerald-600" id="ticketModalTotal">$0.00</span>
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2">
+            <button onclick="cerrarDetalleTicket()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer w-full">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- LÓGICA JAVASCRIPT -->
+<script>
+    const scriptElement = document.getElementById('ventas-data');
+    const ventasData = scriptElement ? JSON.parse(scriptElement.textContent) : [];
+
+    function abrirModalListaTickets() {
+        const modal = document.getElementById('modalListaTickets');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+
+    function cerrarModalListaTickets() {
+        const modal = document.getElementById('modalListaTickets');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function verDetalleTicket(id) {
+        cerrarModalListaTickets();
+
+        const venta = ventasData.find(v => String(v.id) === String(id));
+        
+        if (!venta) {
+            alert('No se encontraron los datos para el ticket #' + id);
+            return;
+        }
+
+        document.getElementById('ticketModalTitle').innerText = `Ticket #${venta.id}`;
+        document.getElementById('ticketModalFecha').innerText = venta.fecha || 'N/A';
+        document.getElementById('ticketModalCajero').innerText = venta.cajero || 'General';
+        document.getElementById('ticketModalCliente').innerText = venta.cliente || 'Público General';
+        document.getElementById('ticketModalMetodoPago').innerText = venta.metodo_pago || 'Efectivo';
+
+        const rowRef = document.getElementById('ticketModalRowReferencia');
+        if (venta.referencia && venta.referencia.trim() !== '') {
+            rowRef.classList.remove('hidden');
+            document.getElementById('ticketModalReferencia').innerText = venta.referencia;
+        } else {
+            rowRef.classList.add('hidden');
+        }
+
+        document.getElementById('ticketModalTotal').innerText = `$${Number(venta.total || 0).toFixed(2)}`;
+
+        const tbody = document.getElementById('ticketModalProductos');
+        tbody.innerHTML = '';
+
+        if (!venta.detalles || venta.detalles.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-gray-400">Sin productos registrados</td></tr>`;
+        } else {
+            venta.detalles.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-50";
+
+                const tdInfo = document.createElement('td');
+                tdInfo.className = "py-2";
+
+                const pProd = document.createElement('p');
+                pProd.className = "font-bold text-gray-800";
+                pProd.textContent = item.producto;
+
+                const pCant = document.createElement('p');
+                pCant.className = "text-[10px] text-gray-400";
+                pCant.textContent = `${item.cantidad} x $${Number(item.precio || 0).toFixed(2)}`;
+
+                tdInfo.appendChild(pProd);
+                tdInfo.appendChild(pCant);
+
+                const tdSubtotal = document.createElement('td');
+                tdSubtotal.className = "py-2 text-right font-black text-gray-800";
+                tdSubtotal.textContent = `$${Number(item.subtotal || 0).toFixed(2)}`;
+
+                tr.appendChild(tdInfo);
+                tr.appendChild(tdSubtotal);
+                tbody.appendChild(tr);
+            });
+        }
+
+        const modalDetalle = document.getElementById('modalDetalleTicket');
+        if (modalDetalle) {
+            modalDetalle.classList.remove('hidden');
+            modalDetalle.classList.add('flex');
+        }
+    }
+
+    function cerrarDetalleTicket() {
+        const modalDetalle = document.getElementById('modalDetalleTicket');
+        if (modalDetalle) {
+            modalDetalle.classList.add('hidden');
+            modalDetalle.classList.remove('flex');
+        }
+    }
+</script>
+
+{% endblock %}

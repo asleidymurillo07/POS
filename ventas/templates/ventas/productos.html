@@ -1,0 +1,487 @@
+{% extends 'ventas/base.html' %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+
+    <!-- Header y Acciones Principales -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-xl font-black text-gray-800 tracking-tight">Catálogo de Productos</h1>
+            <p class="text-xs text-gray-400">Administra costos, precios al público, categorías/marcas, existencias y proveedores</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="{% url 'proveedores' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                <i class="fa-solid fa-truck-field"></i> + Proveedor
+            </a>
+            <button onclick="openModal('modalProducto')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-plus"></i> Nuevo Producto
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de Búsqueda y Filtros -->
+    <form method="GET" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-3">
+        <!-- Input de Búsqueda -->
+        <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <input type="text" name="q" value="{{ query|default:'' }}" placeholder="Buscar por nombre o código..." 
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <!-- Filtro por Categoría / Marca -->
+        <select name="categoria" onchange="this.form.submit()" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 focus:outline-none focus:border-blue-500">
+            <option value="">Todas las Categorías / Marcas</option>
+            {% for cat in categorias %}
+            <option value="{{ cat.id }}" {% if categoria_id == cat.id|stringformat:"i" %}selected{% endif %}>
+                {{ cat.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <!-- Filtro por Proveedor -->
+        <select name="proveedor" onchange="this.form.submit()" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 focus:outline-none focus:border-blue-500">
+            <option value="">Todos los Proveedores</option>
+            {% for prov in proveedores %}
+            <option value="{{ prov.id }}" {% if proveedor_id == prov.id|stringformat:"i" %}selected{% endif %}>
+                {{ prov.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+
+        {% if query or proveedor_id or categoria_id %}
+        <a href="{% url 'productos' %}" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-3 py-2 rounded-xl text-xs flex items-center justify-center transition" title="Limpiar filtros">
+            <i class="fa-solid fa-filter-circle-xmark text-sm"></i>
+        </a>
+        {% endif %}
+    </form>
+
+    <!-- Tabla de Productos -->
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 pb-2">
+                        <th class="pb-3">Código</th>
+                        <th class="pb-3">Producto</th>
+                        <th class="pb-3">Categoría / Marca</th>
+                        <th class="pb-3">Proveedor</th>
+                        <th class="pb-3 text-right">P. Costo</th>
+                        <th class="pb-3 text-right">P. Venta</th>
+                        <th class="pb-3 text-center">Tipo</th>
+                        <th class="pb-3 text-center">Stock</th>
+                        <th class="pb-3 text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for prod in productos %}
+                    <tr class="hover:bg-gray-50/60 transition">
+                        <td class="py-3.5 font-mono text-gray-400">
+                            {% if prod.codigo %}{{ prod.codigo }}{% else %}<span class="text-gray-300">N/A</span>{% endif %}
+                        </td>
+                        <td class="py-3.5 font-bold text-gray-800 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                                {% if prod.es_granel %}
+                                    <i class="fa-solid fa-weight-scale text-amber-500"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-box"></i>
+                                {% endif %}
+                            </div>
+                            <span>{{ prod.nombre }}</span>
+                        </td>
+                        <!-- Badge Categoría / Marca -->
+                        <td class="py-3.5 text-gray-600">
+                            {% if prod.categoria %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
+                                <i class="fa-solid fa-tags text-blue-400"></i> {{ prod.categoria.nombre }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-300 italic">Sin categoría</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 text-gray-500">
+                            {% if prod.proveedor %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 font-semibold text-[11px]">
+                                <i class="fa-solid fa-building text-gray-400"></i> {{ prod.proveedor.nombre }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-300 italic">Sin asignar</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 text-right font-semibold text-gray-500">${{ prod.precio_costo|floatformat:2 }}</td>
+                        <td class="py-3.5 text-right font-black text-blue-600">${{ prod.precio_venta|floatformat:2 }}</td>
+                        
+                        <!-- Badge de Tipo de Venta -->
+                        <td class="py-3.5 text-center">
+                            {% if prod.es_granel %}
+                                <span class="bg-amber-50 text-amber-600 border border-amber-200/60 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
+                                    Granel (kg)
+                                </span>
+                            {% else %}
+                                <span class="bg-slate-50 text-slate-600 border border-slate-200/60 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
+                                    Pieza
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Stock Formateado -->
+                        <td class="py-3.5 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold {% if prod.stock <= 5 %}bg-rose-100 text-rose-600{% else %}bg-emerald-100 text-emerald-700{% endif %}">
+                                {% if prod.stock_formateado %}{{ prod.stock_formateado }}{% else %}{{ prod.stock }} {% if prod.es_granel %}kg{% else %}pz{% endif %}{% endif %}
+                            </span>
+                        </td>
+
+                        <td class="py-3.5 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button type="button" 
+                                    class="btn-editar-producto w-7 h-7 rounded-lg bg-gray-100 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition flex items-center justify-center cursor-pointer"
+                                    data-id="{{ prod.id }}"
+                                    data-codigo="{{ prod.codigo|default:'' }}"
+                                    data-nombre="{{ prod.nombre }}"
+                                    data-costo="{{ prod.precio_costo }}"
+                                    data-venta="{{ prod.precio_venta }}"
+                                    data-stock="{{ prod.stock }}"
+                                    data-granel="{% if prod.es_granel %}true{% else %}false{% endif %}"
+                                    data-proveedor="{{ prod.proveedor.id|default:'' }}"
+                                    data-categoria="{{ prod.categoria.id|default:'' }}"
+                                    title="Editar producto">
+                                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                </button>
+                                
+                                <form method="POST" action="{% url 'eliminar_producto' prod.id %}" onsubmit="return confirm('¿Seguro que deseas eliminar este producto?');" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-rose-50 text-gray-600 hover:text-rose-600 transition flex items-center justify-center cursor-pointer" title="Eliminar producto">
+                                        <i class="fa-solid fa-trash text-xs"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-10 text-gray-400">
+                            <i class="fa-solid fa-box-open text-3xl mb-2 text-gray-300 block"></i>
+                            No se encontraron productos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL CREAR PRODUCTO -->
+<div id="modalProducto" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 border border-gray-100">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <h3 class="font-black text-gray-800 text-base">Nuevo Producto</h3>
+            <button onclick="closeModal('modalProducto')" class="text-gray-400 hover:text-gray-600 text-lg cursor-pointer">&times;</button>
+        </div>
+        <form method="POST" action="{% url 'productos' %}" class="space-y-4 text-xs">
+            {% csrf_token %}
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Código de Barras</label>
+                <input type="text" name="codigo" placeholder="Ej. 750123456789" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Nombre del Producto *</label>
+                <input type="text" name="nombre" required placeholder="Ej. Sabritas Sal 45g" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Categoría / Marca</label>
+                    <select name="categoria" id="select_categoria_crear" onchange="evaluarNuevaCategoria(this)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                        <option value="">Sin categoría</option>
+                        <option value="__nueva__" class="font-bold text-blue-600 bg-blue-50">+ Agregar nueva categoría...</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Proveedor</label>
+                    <select name="proveedor" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                        <option value="">Sin proveedor</option>
+                        {% for prov in proveedores %}
+                        <option value="{{ prov.id }}">{{ prov.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Precio Costo ($) *</label>
+                    <input type="number" step="0.01" name="precio_costo" required placeholder="0.00" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Precio Venta ($) *</label>
+                    <input type="number" step="0.01" name="precio_venta" required placeholder="0.00" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Stock Inicial *</label>
+                <input type="number" step="0.001" name="stock" required value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- Checkbox Granel -->
+            <div class="flex items-center gap-2 pt-1 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <input type="checkbox" id="es_granel" name="es_granel" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                <label for="es_granel" class="text-xs font-bold text-gray-700 cursor-pointer select-none">
+                    Producto a granel (Venta por kg / peso)
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal('modalProducto')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition cursor-pointer">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-md shadow-blue-500/20 cursor-pointer">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDITAR PRODUCTO -->
+<div id="modalEditarProducto" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 border border-gray-100">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <h3 class="font-black text-gray-800 text-base">Modificar Producto</h3>
+            <button onclick="closeModal('modalEditarProducto')" class="text-gray-400 hover:text-gray-600 text-lg cursor-pointer">&times;</button>
+        </div>
+        <form id="formEditarProducto" method="POST" action="" class="space-y-4 text-xs">
+            {% csrf_token %}
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Código de Barras</label>
+                <input type="text" id="edit_codigo" name="codigo" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Nombre del Producto *</label>
+                <input type="text" id="edit_nombre" name="nombre" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Categoría / Marca</label>
+                    <select id="edit_categoria" name="categoria" onchange="evaluarNuevaCategoria(this)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                        <option value="">Sin categoría</option>
+                        <option value="__nueva__" class="font-bold text-blue-600 bg-blue-50">+ Agregar nueva categoría...</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Proveedor</label>
+                    <select id="edit_proveedor" name="proveedor" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                        <option value="">Sin proveedor</option>
+                        {% for prov in proveedores %}
+                        <option value="{{ prov.id }}">{{ prov.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Precio Costo ($) *</label>
+                    <input type="number" step="0.01" id="edit_precio_costo" name="precio_costo" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Precio Venta ($) *</label>
+                    <input type="number" step="0.01" id="edit_precio_venta" name="precio_venta" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-bold text-gray-700 mb-1">Stock *</label>
+                <input type="number" step="0.001" id="edit_stock" name="stock" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- Checkbox Granel Edit -->
+            <div class="flex items-center gap-2 pt-1 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <input type="checkbox" id="edit_es_granel" name="es_granel" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                <label for="edit_es_granel" class="text-xs font-bold text-gray-700 cursor-pointer select-none">
+                    Producto a granel (Venta por kg / peso)
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal('modalEditarProducto')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition cursor-pointer">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-md shadow-blue-500/20 cursor-pointer">Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- MODAL NUEVA CATEGORÍA (RÁPIDO) -->
+<div id="modalNuevaCategoria" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 border border-gray-100">
+        <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-tags text-blue-600"></i>
+                <h3 class="font-black text-gray-800 text-sm">Nueva Categoría / Marca</h3>
+            </div>
+            <button type="button" onclick="cancelarCreacionCategoria()" class="text-gray-400 hover:text-gray-600 text-lg cursor-pointer">&times;</button>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-xs font-bold text-gray-600">Nombre de la Categoría</label>
+            <input type="text" id="inputNombreCategoriaModal" placeholder="Ej: Sabritas, Barcel, Coca Cola, Verduras" 
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="cancelarCreacionCategoria()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition cursor-pointer">
+                Cancelar
+            </button>
+            <button type="button" onclick="confirmarGuardarCategoriaModal()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-blue-500/20 cursor-pointer">
+                Guardar Categoría
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+let selectCategoriaActivo = null;
+
+function evaluarNuevaCategoria(selectElement) {
+    if (selectElement.value === '__nueva__') {
+        selectCategoriaActivo = selectElement;
+        const inputModal = document.getElementById('inputNombreCategoriaModal');
+        inputModal.value = '';
+        
+        openModal('modalNuevaCategoria');
+        setTimeout(() => inputModal.focus(), 100);
+    }
+}
+
+function cancelarCreacionCategoria() {
+    closeModal('modalNuevaCategoria');
+    if (selectCategoriaActivo) {
+        selectCategoriaActivo.value = '';
+        selectCategoriaActivo = null;
+    }
+}
+
+function confirmarGuardarCategoriaModal() {
+    const inputModal = document.getElementById('inputNombreCategoriaModal');
+    const nombreNueva = inputModal.value.trim();
+
+    if (!nombreNueva) {
+        alert('Ingresa un nombre para la categoría.');
+        return;
+    }
+
+    fetch("{% url 'crear_categoria_api' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ nombre: nombreNueva })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Agregar la nueva opción a todos los selectores de categoría
+            document.querySelectorAll('select[name="categoria"]').forEach(select => {
+                const opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.nombre;
+                select.appendChild(opt);
+            });
+
+            // Seleccionar automáticamente la nueva categoría en el modal activo
+            if (selectCategoriaActivo) {
+                selectCategoriaActivo.value = data.id;
+            }
+
+            closeModal('modalNuevaCategoria');
+            selectCategoriaActivo = null;
+        } else {
+            alert('Error al crear la categoría: ' + data.error);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Ocurrió un error de conexión al guardar la categoría.');
+    });
+}
+
+// Permite guardar con la tecla Enter dentro del modal
+document.getElementById('inputNombreCategoriaModal')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmarGuardarCategoriaModal();
+    }
+});
+// Delegación de eventos para los botones de editar
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-editar-producto');
+    if (!btn) return;
+
+    // Obtener datos desde los atributos data-*
+    const id = btn.dataset.id;
+    const codigo = btn.dataset.codigo;
+    const nombre = btn.dataset.nombre;
+    const costo = btn.dataset.costo;
+    const venta = btn.dataset.venta;
+    const stock = btn.dataset.stock;
+    const esGranel = btn.dataset.granel === 'true';
+    const proveedorId = btn.dataset.proveedor;
+    const categoriaId = btn.dataset.categoria;
+
+    // Actualizar la URL del formulario dinámicamente
+    const form = document.getElementById('formEditarProducto');
+    if (form) {
+        form.action = `/productos/editar/${id}/`;
+    }
+
+    // Llenar los campos del modal
+    document.getElementById('edit_codigo').value = codigo;
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_precio_costo').value = parseFloat(costo) || 0;
+    document.getElementById('edit_precio_venta').value = parseFloat(venta) || 0;
+    document.getElementById('edit_stock').value = parseFloat(stock) || 0;
+    document.getElementById('edit_es_granel').checked = esGranel;
+    document.getElementById('edit_proveedor').value = proveedorId;
+    document.getElementById('edit_categoria').value = categoriaId;
+
+    // Abrir el modal
+    openModal('modalEditarProducto');
+});
+</script>
+{% endblock %}
